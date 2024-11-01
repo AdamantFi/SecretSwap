@@ -1,489 +1,317 @@
-use std::any::type_name;
-use std::convert::TryFrom;
-
-use cosmwasm_std::{
-    Api, CanonicalAddr, Coin, HumanAddr, ReadonlyStorage, StdError, StdResult, Storage, Uint128,
-};
-use cosmwasm_storage::{PrefixedStorage, ReadonlyPrefixedStorage};
 use schemars::JsonSchema;
-use secret_toolkit::storage::{AppendStore, AppendStoreMut, TypedStore, TypedStoreMut};
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::msg::{status_level_to_u8, u8_to_status_level, ContractStatusLevel};
-use crate::viewing_key::ViewingKey;
+use cosmwasm_std::{Addr, StdError, StdResult, Storage};
+use secret_toolkit::serialization::Json;
+use secret_toolkit::storage::{Item, Keymap, Keyset};
+use secret_toolkit_crypto::SHA256_HASH_SIZE;
 
-pub static CONFIG_KEY: &[u8] = b"config";
-pub const PREFIX_TXS: &[u8] = b"transfers";
+use crate::msg::ContractStatusLevel;
 
-pub const KEY_CONSTANTS: &[u8] = b"constants";
+pub const KEY_CONFIG: &[u8] = b"config";
 pub const KEY_TOTAL_SUPPLY: &[u8] = b"total_supply";
 pub const KEY_CONTRACT_STATUS: &[u8] = b"contract_status";
-pub const KEY_TX_COUNT: &[u8] = b"tx-count";
+pub const KEY_PRNG: &[u8] = b"prng";
 pub const KEY_MINTERS: &[u8] = b"minters";
+pub const KEY_TX_COUNT: &[u8] = b"tx-count";
 
 pub const PREFIX_CONFIG: &[u8] = b"config";
 pub const PREFIX_BALANCES: &[u8] = b"balances";
 pub const PREFIX_ALLOWANCES: &[u8] = b"allowances";
+pub const PREFIX_ALLOWED: &[u8] = b"allowed";
 pub const PREFIX_VIEW_KEY: &[u8] = b"viewingkey";
 pub const PREFIX_RECEIVERS: &[u8] = b"receivers";
 
-// Note that id is a globally incrementing counter.
-// Since it's 64 bits long, even at 50 tx/s it would take
-// over 11 billion years for it to rollback. I'm pretty sure
-// we'll have bigger issues by then.
-#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
-pub struct Tx {
-    pub id: u64,
-    pub from: HumanAddr,
-    pub sender: HumanAddr,
-    pub receiver: HumanAddr,
-    pub coins: Coin,
-}
-
-impl Tx {
-    pub fn into_stored<A: Api>(self, api: &A) -> StdResult<StoredTx> {
-        let tx = StoredTx {
-            id: self.id,
-            from: api.canonical_address(&self.from)?,
-            sender: api.canonical_address(&self.sender)?,
-            receiver: api.canonical_address(&self.receiver)?,
-            coins: self.coins,
-        };
-        Ok(tx)
-    }
-}
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct StoredTx {
-    pub id: u64,
-    pub from: CanonicalAddr,
-    pub sender: CanonicalAddr,
-    pub receiver: CanonicalAddr,
-    pub coins: Coin,
-}
-
-impl StoredTx {
-    pub fn into_humanized<A: Api>(self, api: &A) -> StdResult<Tx> {
-        let tx = Tx {
-            id: self.id,
-            from: api.human_address(&self.from)?,
-            sender: api.human_address(&self.sender)?,
-            receiver: api.human_address(&self.receiver)?,
-            coins: self.coins,
-        };
-        Ok(tx)
-    }
-}
-
-pub fn store_transfer<S: Storage>(
-    store: &mut S,
-    owner: &CanonicalAddr,
-    sender: &CanonicalAddr,
-    receiver: &CanonicalAddr,
-    amount: Uint128,
-    denom: String,
-) -> StdResult<()> {
-    let mut config = Config::from_storage(store);
-    let id = config.tx_count() + 1;
-    config.set_tx_count(id)?;
-
-    let coins = Coin { denom, amount };
-    let tx = StoredTx {
-        id,
-        from: owner.clone(),
-        sender: sender.clone(),
-        receiver: receiver.clone(),
-        coins,
-    };
-
-    if owner != sender {
-        append_tx(store, tx.clone(), &owner)?;
-    }
-    append_tx(store, tx.clone(), &sender)?;
-    append_tx(store, tx, &receiver)?;
-
-    Ok(())
-}
-
-fn append_tx<S: Storage>(
-    store: &mut S,
-    tx: StoredTx,
-    for_address: &CanonicalAddr,
-) -> StdResult<()> {
-    let mut store = PrefixedStorage::multilevel(&[PREFIX_TXS, for_address.as_slice()], store);
-    let mut store = AppendStoreMut::attach_or_create(&mut store)?;
-    store.push(&tx)
-}
-
-pub fn get_transfers<A: Api, S: ReadonlyStorage>(
-    api: &A,
-    storage: &S,
-    for_address: &CanonicalAddr,
-    page: u32,
-    page_size: u32,
-) -> StdResult<Vec<Tx>> {
-    let store = ReadonlyPrefixedStorage::multilevel(&[PREFIX_TXS, for_address.as_slice()], storage);
-
-    // Try to access the storage of txs for the account.
-    // If it doesn't exist yet, return an empty list of transfers.
-    let store = if let Some(result) = AppendStore::<StoredTx, _>::attach(&store) {
-        result?
-    } else {
-        return Ok(vec![]);
-    };
-
-    // Take `page_size` txs starting from the latest tx, potentially skipping `page * page_size`
-    // txs from the start.
-    let tx_iter = store
-        .iter()
-        .rev()
-        .skip((page * page_size) as _)
-        .take(page_size as _);
-    // The `and_then` here flattens the `StdResult<StdResult<Tx>>` to an `StdResult<Tx>`
-    let txs: StdResult<Vec<Tx>> = tx_iter
-        .map(|tx| tx.map(|tx| tx.into_humanized(api)).and_then(|x| x))
-        .collect();
-    txs
-}
-
 // Config
 
-#[derive(Serialize, Debug, Deserialize, Clone, PartialEq, JsonSchema)]
-pub struct Constants {
+#[derive(Serialize, Debug, Deserialize, Clone, JsonSchema)]
+#[cfg_attr(test, derive(Eq, PartialEq))]
+pub struct Config {
     pub name: String,
-    pub admin: HumanAddr,
+    pub admin: Addr,
     pub symbol: String,
     pub decimals: u8,
-    pub prng_seed: Vec<u8>,
     // privacy configuration
     pub total_supply_is_public: bool,
+    // is deposit enabled
+    pub deposit_is_enabled: bool,
+    // is redeem enabled
+    pub redeem_is_enabled: bool,
+    // is mint enabled
+    pub mint_is_enabled: bool,
+    // is burn enabled
+    pub burn_is_enabled: bool,
+    // the address of this contract, used to validate query permits
+    pub contract_address: Addr,
+    // coin denoms that are supported for deposit/redeem
+    pub supported_denoms: Vec<String>,
+    // can admin add or remove supported denoms
+    pub can_modify_denoms: bool,
 }
 
-pub struct ReadonlyConfig<'a, S: ReadonlyStorage> {
-    storage: ReadonlyPrefixedStorage<'a, S>,
-}
+pub static CONFIG: Item<Config> = Item::new(KEY_CONFIG);
 
-impl<'a, S: ReadonlyStorage> ReadonlyConfig<'a, S> {
-    pub fn from_storage(storage: &'a S) -> Self {
-        Self {
-            storage: ReadonlyPrefixedStorage::new(PREFIX_CONFIG, storage),
-        }
+pub static TOTAL_SUPPLY: Item<u128> = Item::new(KEY_TOTAL_SUPPLY);
+
+pub static CONTRACT_STATUS: Item<ContractStatusLevel, Json> = Item::new(KEY_CONTRACT_STATUS);
+
+pub static PRNG: Item<[u8; SHA256_HASH_SIZE]> = Item::new(KEY_PRNG);
+
+pub static MINTERS: Item<Vec<Addr>> = Item::new(KEY_MINTERS);
+
+pub static TX_COUNT: Item<u64> = Item::new(KEY_TX_COUNT);
+
+pub struct PrngStore {}
+impl PrngStore {
+    pub fn load(store: &dyn Storage) -> StdResult<[u8; SHA256_HASH_SIZE]> {
+        PRNG.load(store).map_err(|_err| StdError::generic_err(""))
     }
 
-    fn as_readonly(&self) -> ReadonlyConfigImpl<ReadonlyPrefixedStorage<S>> {
-        ReadonlyConfigImpl(&self.storage)
-    }
-
-    pub fn constants(&self) -> StdResult<Constants> {
-        self.as_readonly().constants()
-    }
-
-    pub fn total_supply(&self) -> u128 {
-        self.as_readonly().total_supply()
-    }
-
-    pub fn contract_status(&self) -> ContractStatusLevel {
-        self.as_readonly().contract_status()
-    }
-
-    pub fn minters(&self) -> Vec<HumanAddr> {
-        self.as_readonly().minters()
-    }
-
-    pub fn tx_count(&self) -> u64 {
-        self.as_readonly().tx_count()
-    }
-}
-
-fn set_bin_data<T: Serialize, S: Storage>(storage: &mut S, key: &[u8], data: &T) -> StdResult<()> {
-    let bin_data =
-        bincode2::serialize(&data).map_err(|e| StdError::serialize_err(type_name::<T>(), e))?;
-
-    storage.set(key, &bin_data);
-    Ok(())
-}
-
-fn get_bin_data<T: DeserializeOwned, S: ReadonlyStorage>(storage: &S, key: &[u8]) -> StdResult<T> {
-    let bin_data = storage.get(key);
-
-    match bin_data {
-        None => Err(StdError::not_found("Key not found in storage")),
-        Some(bin_data) => Ok(bincode2::deserialize::<T>(&bin_data)
-            .map_err(|e| StdError::serialize_err(type_name::<T>(), e))?),
+    pub fn save(store: &mut dyn Storage, prng_seed: [u8; SHA256_HASH_SIZE]) -> StdResult<()> {
+        PRNG.save(store, &prng_seed)
     }
 }
 
-pub struct Config<'a, S: Storage> {
-    storage: PrefixedStorage<'a, S>,
-}
-
-impl<'a, S: Storage> Config<'a, S> {
-    pub fn from_storage(storage: &'a mut S) -> Self {
-        Self {
-            storage: PrefixedStorage::new(PREFIX_CONFIG, storage),
-        }
+pub struct MintersStore {}
+impl MintersStore {
+    pub fn load(store: &dyn Storage) -> StdResult<Vec<Addr>> {
+        MINTERS
+            .load(store)
+            .map_err(|_err| StdError::generic_err(""))
     }
 
-    fn as_readonly(&self) -> ReadonlyConfigImpl<PrefixedStorage<S>> {
-        ReadonlyConfigImpl(&self.storage)
+    pub fn save(store: &mut dyn Storage, minters_to_set: Vec<Addr>) -> StdResult<()> {
+        MINTERS.save(store, &minters_to_set)
     }
 
-    pub fn constants(&self) -> StdResult<Constants> {
-        self.as_readonly().constants()
+    pub fn add_minters(store: &mut dyn Storage, minters_to_add: Vec<Addr>) -> StdResult<()> {
+        let mut loaded_minters = MINTERS
+            .load(store)
+            .map_err(|_err| StdError::not_found("Key not found in storage"))?;
+
+        loaded_minters.extend(minters_to_add);
+
+        MINTERS.save(store, &loaded_minters)
     }
 
-    pub fn set_constants(&mut self, constants: &Constants) -> StdResult<()> {
-        set_bin_data(&mut self.storage, KEY_CONSTANTS, constants)
-    }
-
-    pub fn total_supply(&self) -> u128 {
-        self.as_readonly().total_supply()
-    }
-
-    pub fn set_total_supply(&mut self, supply: u128) {
-        self.storage.set(KEY_TOTAL_SUPPLY, &supply.to_be_bytes());
-    }
-
-    pub fn contract_status(&self) -> ContractStatusLevel {
-        self.as_readonly().contract_status()
-    }
-
-    pub fn set_contract_status(&mut self, status: ContractStatusLevel) {
-        let status_u8 = status_level_to_u8(status);
-        self.storage
-            .set(KEY_CONTRACT_STATUS, &status_u8.to_be_bytes());
-    }
-
-    pub fn set_minters(&mut self, minters_to_set: Vec<HumanAddr>) -> StdResult<()> {
-        set_bin_data(&mut self.storage, KEY_MINTERS, &minters_to_set)
-    }
-
-    pub fn add_minters(&mut self, minters_to_add: Vec<HumanAddr>) -> StdResult<()> {
-        let mut minters = self.minters();
-        minters.extend(minters_to_add);
-
-        self.set_minters(minters)
-    }
-
-    pub fn remove_minters(&mut self, minters_to_remove: Vec<HumanAddr>) -> StdResult<()> {
-        let mut minters = self.minters();
+    pub fn remove_minters(store: &mut dyn Storage, minters_to_remove: Vec<Addr>) -> StdResult<()> {
+        let mut loaded_minters = MINTERS
+            .load(store)
+            .map_err(|_err| StdError::generic_err(""))?;
 
         for minter in minters_to_remove {
-            minters.retain(|x| x != &minter);
+            loaded_minters.retain(|x| x != &minter);
         }
 
-        self.set_minters(minters)
-    }
-
-    pub fn minters(&mut self) -> Vec<HumanAddr> {
-        self.as_readonly().minters()
-    }
-
-    pub fn tx_count(&self) -> u64 {
-        self.as_readonly().tx_count()
-    }
-
-    pub fn set_tx_count(&mut self, count: u64) -> StdResult<()> {
-        set_bin_data(&mut self.storage, KEY_TX_COUNT, &count)
+        MINTERS.save(store, &loaded_minters)
     }
 }
 
-/// This struct refactors out the readonly methods that we need for `Config` and `ReadonlyConfig`
-/// in a way that is generic over their mutability.
-///
-/// This was the only way to prevent code duplication of these methods because of the way
-/// that `ReadonlyPrefixedStorage` and `PrefixedStorage` are implemented in `cosmwasm-std`
-struct ReadonlyConfigImpl<'a, S: ReadonlyStorage>(&'a S);
+// To avoid balance guessing attacks based on balance overflow we need to perform safe addition and don't expose overflows to the caller.
+// Assuming that max of u128 is probably an unreachable balance, we want the addition to be bounded the max of u128
+// Currently the logic here is very straight forward yet the existence of the function is mendatory for future changes if needed.
+pub fn safe_add(balance: &mut u128, amount: u128) -> u128 {
+    // Note that new_amount can be equal to base after this operation.
+    // Currently we do nothing maybe on other implementations we will have something to add here
+    let prev_balance: u128 = *balance;
+    *balance = balance.saturating_add(amount);
 
-impl<'a, S: ReadonlyStorage> ReadonlyConfigImpl<'a, S> {
-    fn constants(&self) -> StdResult<Constants> {
-        let consts_bytes = self
-            .0
-            .get(KEY_CONSTANTS)
-            .ok_or_else(|| StdError::generic_err("no constants stored in configuration"))?;
-        bincode2::deserialize::<Constants>(&consts_bytes)
-            .map_err(|e| StdError::serialize_err(type_name::<Constants>(), e))
-    }
-
-    fn total_supply(&self) -> u128 {
-        let supply_bytes = self
-            .0
-            .get(KEY_TOTAL_SUPPLY)
-            .expect("no total supply stored in config");
-        // This unwrap is ok because we know we stored things correctly
-        slice_to_u128(&supply_bytes).unwrap()
-    }
-
-    fn contract_status(&self) -> ContractStatusLevel {
-        let supply_bytes = self
-            .0
-            .get(KEY_CONTRACT_STATUS)
-            .expect("no contract status stored in config");
-
-        // These unwraps are ok because we know we stored things correctly
-        let status = slice_to_u8(&supply_bytes).unwrap();
-        u8_to_status_level(status).unwrap()
-    }
-
-    fn minters(&self) -> Vec<HumanAddr> {
-        get_bin_data(self.0, KEY_MINTERS).unwrap()
-    }
-
-    pub fn tx_count(&self) -> u64 {
-        get_bin_data(self.0, KEY_TX_COUNT).unwrap_or_default()
-    }
+    // Won't underflow as the minimal value possible is 0
+    *balance - prev_balance
 }
 
-// Balances
-
-pub struct ReadonlyBalances<'a, S: ReadonlyStorage> {
-    storage: ReadonlyPrefixedStorage<'a, S>,
-}
-
-impl<'a, S: ReadonlyStorage> ReadonlyBalances<'a, S> {
-    pub fn from_storage(storage: &'a S) -> Self {
-        Self {
-            storage: ReadonlyPrefixedStorage::new(PREFIX_BALANCES, storage),
-        }
+pub static BALANCES: Item<u128> = Item::new(PREFIX_BALANCES);
+pub struct BalancesStore {}
+impl BalancesStore {
+    fn save(store: &mut dyn Storage, account: &Addr, amount: u128) -> StdResult<()> {
+        let balances = BALANCES.add_suffix(account.as_str().as_bytes());
+        balances.save(store, &amount)
     }
 
-    fn as_readonly(&self) -> ReadonlyBalancesImpl<ReadonlyPrefixedStorage<S>> {
-        ReadonlyBalancesImpl(&self.storage)
+    pub fn load(store: &dyn Storage, account: &Addr) -> u128 {
+        let balances = BALANCES.add_suffix(account.as_str().as_bytes());
+        balances.load(store).unwrap_or_default()
     }
 
-    pub fn account_amount(&self, account: &CanonicalAddr) -> u128 {
-        self.as_readonly().account_amount(account)
-    }
-}
+    pub fn update_balance(
+        store: &mut dyn Storage,
+        account: &Addr,
+        amount_to_be_updated: u128,
+        should_add: bool,
+        operation_name: &str,
+        decoys: &Option<Vec<Addr>>,
+        account_random_pos: &Option<usize>,
+    ) -> StdResult<()> {
+        match decoys {
+            None => {
+                let mut balance = Self::load(store, account);
+                balance = match should_add {
+                    true => {
+                        safe_add(&mut balance, amount_to_be_updated);
+                        balance
+                    }
+                    false => {
+                        if let Some(balance) = balance.checked_sub(amount_to_be_updated) {
+                            balance
+                        } else {
+                            return Err(StdError::generic_err(format!(
+                                "insufficient funds to {operation_name}: balance={balance}, required={amount_to_be_updated}",
+                            )));
+                        }
+                    }
+                };
 
-pub struct Balances<'a, S: Storage> {
-    storage: PrefixedStorage<'a, S>,
-}
+                Self::save(store, account, balance)
+            }
+            Some(decoys_vec) => {
+                // It should always be set when decoys_vec is set
+                let account_pos = account_random_pos.unwrap();
 
-impl<'a, S: Storage> Balances<'a, S> {
-    pub fn from_storage(storage: &'a mut S) -> Self {
-        Self {
-            storage: PrefixedStorage::new(PREFIX_BALANCES, storage),
-        }
-    }
+                let mut accounts_to_be_written: Vec<&Addr> = vec![];
 
-    fn as_readonly(&self) -> ReadonlyBalancesImpl<PrefixedStorage<S>> {
-        ReadonlyBalancesImpl(&self.storage)
-    }
+                let (first_part, second_part) = decoys_vec.split_at(account_pos);
+                accounts_to_be_written.extend(first_part);
+                accounts_to_be_written.push(account);
+                accounts_to_be_written.extend(second_part);
 
-    pub fn balance(&self, account: &CanonicalAddr) -> u128 {
-        self.as_readonly().account_amount(account)
-    }
+                // In a case where the account is also a decoy somehow
+                let mut was_account_updated = false;
 
-    pub fn set_account_balance(&mut self, account: &CanonicalAddr, amount: u128) {
-        self.storage.set(account.as_slice(), &amount.to_be_bytes())
-    }
-}
+                for acc in accounts_to_be_written.iter() {
+                    // Always load account balance to obfuscate the real account
+                    // Please note that decoys are not always present in the DB. In this case it is ok beacuse load will return 0.
+                    let mut acc_balance = Self::load(store, acc);
+                    let mut new_balance = acc_balance;
 
-/// This struct refactors out the readonly methods that we need for `Balances` and `ReadonlyBalances`
-/// in a way that is generic over their mutability.
-///
-/// This was the only way to prevent code duplication of these methods because of the way
-/// that `ReadonlyPrefixedStorage` and `PrefixedStorage` are implemented in `cosmwasm-std`
-struct ReadonlyBalancesImpl<'a, S: ReadonlyStorage>(&'a S);
+                    if *acc == account && !was_account_updated {
+                        was_account_updated = true;
+                        new_balance = match should_add {
+                            true => {
+                                safe_add(&mut acc_balance, amount_to_be_updated);
+                                acc_balance
+                            }
+                            false => {
+                                if let Some(balance) = acc_balance.checked_sub(amount_to_be_updated)
+                                {
+                                    balance
+                                } else {
+                                    return Err(StdError::generic_err(format!(
+                                        "insufficient funds to {operation_name}: balance={acc_balance}, required={amount_to_be_updated}",
+                                    )));
+                                }
+                            }
+                        };
+                    }
+                    Self::save(store, acc, new_balance)?;
+                }
 
-impl<'a, S: ReadonlyStorage> ReadonlyBalancesImpl<'a, S> {
-    pub fn account_amount(&self, account: &CanonicalAddr) -> u128 {
-        let account_bytes = account.as_slice();
-        let result = self.0.get(account_bytes);
-        match result {
-            // This unwrap is ok because we know we stored things correctly
-            Some(balance_bytes) => slice_to_u128(&balance_bytes).unwrap(),
-            None => 0,
+                Ok(())
+            }
         }
     }
 }
 
 // Allowances
 
-#[derive(Serialize, Debug, Deserialize, Clone, PartialEq, Default, JsonSchema)]
+#[derive(Serialize, Debug, Deserialize, Clone, PartialEq, Eq, Default, JsonSchema)]
 pub struct Allowance {
     pub amount: u128,
     pub expiration: Option<u64>,
 }
 
-pub fn read_allowance<S: Storage>(
-    store: &S,
-    owner: &CanonicalAddr,
-    spender: &CanonicalAddr,
-) -> StdResult<Allowance> {
-    let owner_store =
-        ReadonlyPrefixedStorage::multilevel(&[PREFIX_ALLOWANCES, owner.as_slice()], store);
-    let owner_store = TypedStore::attach(&owner_store);
-    let allowance = owner_store.may_load(spender.as_slice());
-    allowance.map(Option::unwrap_or_default)
-}
-
-pub fn write_allowance<S: Storage>(
-    store: &mut S,
-    owner: &CanonicalAddr,
-    spender: &CanonicalAddr,
-    allowance: Allowance,
-) -> StdResult<()> {
-    let mut owner_store =
-        PrefixedStorage::multilevel(&[PREFIX_ALLOWANCES, owner.as_slice()], store);
-    let mut owner_store = TypedStoreMut::attach(&mut owner_store);
-
-    owner_store.store(spender.as_slice(), &allowance)
-}
-
-// Viewing Keys
-
-pub fn write_viewing_key<S: Storage>(store: &mut S, owner: &CanonicalAddr, key: &ViewingKey) {
-    let mut balance_store = PrefixedStorage::new(PREFIX_VIEW_KEY, store);
-    balance_store.set(owner.as_slice(), &key.to_hashed());
-}
-
-pub fn read_viewing_key<S: Storage>(store: &S, owner: &CanonicalAddr) -> Option<Vec<u8>> {
-    let balance_store = ReadonlyPrefixedStorage::new(PREFIX_VIEW_KEY, store);
-    balance_store.get(owner.as_slice())
-}
-
-// Receiver Interface
-
-pub fn get_receiver_hash<S: ReadonlyStorage>(
-    store: &S,
-    account: &HumanAddr,
-) -> Option<StdResult<String>> {
-    let store = ReadonlyPrefixedStorage::new(PREFIX_RECEIVERS, store);
-    store.get(account.as_str().as_bytes()).map(|data| {
-        String::from_utf8(data)
-            .map_err(|_err| StdError::invalid_utf8("stored code hash was not a valid String"))
-    })
-}
-
-pub fn set_receiver_hash<S: Storage>(store: &mut S, account: &HumanAddr, code_hash: String) {
-    let mut store = PrefixedStorage::new(PREFIX_RECEIVERS, store);
-    store.set(account.as_str().as_bytes(), code_hash.as_bytes());
-}
-
-// Helpers
-
-/// Converts 16 bytes value into u128
-/// Errors if data found that is not 16 bytes
-fn slice_to_u128(data: &[u8]) -> StdResult<u128> {
-    match <[u8; 16]>::try_from(data) {
-        Ok(bytes) => Ok(u128::from_be_bytes(bytes)),
-        Err(_) => Err(StdError::generic_err(
-            "Corrupted data found. 16 byte expected.",
-        )),
+impl Allowance {
+    pub fn is_expired_at(&self, block: &cosmwasm_std::BlockInfo) -> bool {
+        match self.expiration {
+            Some(time) => block.time.seconds() >= time,
+            None => false, // allowance has no expiration
+        }
     }
 }
 
-/// Converts 1 byte value into u8
-/// Errors if data found that is not 1 byte
-fn slice_to_u8(data: &[u8]) -> StdResult<u8> {
-    if data.len() == 1 {
-        Ok(data[0])
-    } else {
-        Err(StdError::generic_err(
-            "Corrupted data found. 1 byte expected.",
-        ))
+pub static ALLOWANCES: Keymap<Addr, Allowance> = Keymap::new(PREFIX_ALLOWANCES);
+pub static ALLOWED: Keyset<Addr> = Keyset::new(PREFIX_ALLOWED);
+pub struct AllowancesStore {}
+impl AllowancesStore {
+    pub fn load(store: &dyn Storage, owner: &Addr, spender: &Addr) -> Allowance {
+        ALLOWANCES
+            .add_suffix(owner.as_bytes())
+            .get(store, &spender.clone())
+            .unwrap_or_default()
+    }
+
+    pub fn save(
+        store: &mut dyn Storage,
+        owner: &Addr,
+        spender: &Addr,
+        allowance: &Allowance,
+    ) -> StdResult<()> {
+        ALLOWED
+            .add_suffix(spender.as_bytes())
+            .insert(store, owner)?;
+        ALLOWANCES
+            .add_suffix(owner.as_bytes())
+            .insert(store, spender, allowance)
+    }
+
+    pub fn all_allowances(
+        store: &dyn Storage,
+        owner: &Addr,
+        page: u32,
+        page_size: u32,
+    ) -> StdResult<Vec<(Addr, Allowance)>> {
+        ALLOWANCES
+            .add_suffix(owner.as_bytes())
+            .paging(store, page, page_size)
+    }
+
+    pub fn num_allowances(store: &dyn Storage, owner: &Addr) -> u32 {
+        ALLOWANCES
+            .add_suffix(owner.as_bytes())
+            .get_len(store)
+            .unwrap_or(0)
+    }
+
+    pub fn all_allowed(
+        store: &dyn Storage,
+        spender: &Addr,
+        page: u32,
+        page_size: u32,
+    ) -> StdResult<Vec<(Addr, Allowance)>> {
+        let owners = ALLOWED
+            .add_suffix(spender.as_bytes())
+            .paging(store, page, page_size)?;
+        let owners_allowances = owners
+            .into_iter()
+            .map(|owner| (owner.clone(), AllowancesStore::load(store, &owner, spender)))
+            .collect();
+        Ok(owners_allowances)
+    }
+
+    pub fn num_allowed(store: &dyn Storage, spender: &Addr) -> u32 {
+        ALLOWED
+            .add_suffix(spender.as_bytes())
+            .get_len(store)
+            .unwrap_or(0)
+    }
+
+    pub fn is_allowed(store: &dyn Storage, owner: &Addr, spender: &Addr) -> bool {
+        ALLOWED
+            .add_suffix(spender.as_bytes())
+            .contains(store, owner)
+    }
+}
+
+// Receiver Interface
+pub static RECEIVER_HASH: Item<String> = Item::new(PREFIX_RECEIVERS);
+pub struct ReceiverHashStore {}
+impl ReceiverHashStore {
+    pub fn may_load(store: &dyn Storage, account: &Addr) -> StdResult<Option<String>> {
+        let receiver_hash = RECEIVER_HASH.add_suffix(account.as_str().as_bytes());
+        receiver_hash.may_load(store)
+    }
+
+    pub fn save(store: &mut dyn Storage, account: &Addr, code_hash: String) -> StdResult<()> {
+        let receiver_hash = RECEIVER_HASH.add_suffix(account.as_str().as_bytes());
+        receiver_hash.save(store, &code_hash)
     }
 }

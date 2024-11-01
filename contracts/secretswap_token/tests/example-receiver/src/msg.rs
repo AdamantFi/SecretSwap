@@ -1,38 +1,41 @@
-use cosmwasm_std::{Binary, HumanAddr, Uint128};
+use cosmwasm_std::{Addr, Binary, Uint128};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct InitMsg {
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+pub struct InstantiateMsg {
     pub count: i32,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub enum HandleMsg {
+pub enum ExecuteMsg {
     Increment {},
     Reset {
         count: i32,
     },
     Register {
-        reg_addr: HumanAddr,
+        reg_addr: Addr,
         reg_hash: String,
     },
     Receive {
-        sender: HumanAddr,
+        sender: Addr,
+        from: Addr,
         amount: Uint128,
+        memo: Option<String>,
         msg: Binary,
     },
     Redeem {
-        addr: HumanAddr,
+        addr: Addr,
         hash: String,
-        to: HumanAddr,
+        to: Addr,
         amount: Uint128,
+        denom: Option<String>,
     },
     Fail {},
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum QueryMsg {
     // GetCount returns the current count as a json-encoded number
@@ -40,13 +43,13 @@ pub enum QueryMsg {
 }
 
 // We define a custom struct for each query response
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 pub struct CountResponse {
     pub count: i32,
 }
 
 // Messages sent to SNIP-20 contracts
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Snip20Msg {
     RegisterReceive {
@@ -55,6 +58,7 @@ pub enum Snip20Msg {
     },
     Redeem {
         amount: Uint128,
+        denom: String,
         padding: Option<String>,
     },
 }
@@ -67,9 +71,10 @@ impl Snip20Msg {
         }
     }
 
-    pub fn redeem(amount: Uint128) -> Self {
+    pub fn redeem(amount: Uint128, denom: String) -> Self {
         Snip20Msg::Redeem {
             amount,
+            denom,
             padding: None, // TODO add padding calculation
         }
     }

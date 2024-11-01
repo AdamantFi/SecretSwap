@@ -17,6 +17,12 @@
             "amount": {
               "$ref": "#/definitions/Uint128"
             },
+            "denom": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "padding": {
               "type": [
                 "string",
@@ -49,25 +55,6 @@
     {
       "type": "object",
       "required": [
-        "balance"
-      ],
-      "properties": {
-        "balance": {
-          "type": "object",
-          "properties": {
-            "padding": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
-          }
-        }
-      }
-    },
-    {
-      "type": "object",
-      "required": [
         "transfer"
       ],
       "properties": {
@@ -80,6 +67,12 @@
           "properties": {
             "amount": {
               "$ref": "#/definitions/Uint128"
+            },
+            "memo": {
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "padding": {
               "type": [
@@ -110,6 +103,12 @@
             "amount": {
               "$ref": "#/definitions/Uint128"
             },
+            "memo": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "msg": {
               "anyOf": [
                 {
@@ -128,6 +127,68 @@
             },
             "recipient": {
               "$ref": "#/definitions/HumanAddr"
+            },
+            "recipient_code_hash": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "batch_transfer"
+      ],
+      "properties": {
+        "batch_transfer": {
+          "type": "object",
+          "required": [
+            "actions"
+          ],
+          "properties": {
+            "actions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/TransferAction"
+              }
+            },
+            "padding": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "batch_send"
+      ],
+      "properties": {
+        "batch_send": {
+          "type": "object",
+          "required": [
+            "actions"
+          ],
+          "properties": {
+            "actions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/SendAction"
+              }
+            },
+            "padding": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         }
@@ -147,6 +208,12 @@
           "properties": {
             "amount": {
               "$ref": "#/definitions/Uint128"
+            },
+            "memo": {
+              "type": [
+                "string",
+                "null"
+              ]
             },
             "padding": {
               "type": [
@@ -324,6 +391,12 @@
             "amount": {
               "$ref": "#/definitions/Uint128"
             },
+            "memo": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "owner": {
               "$ref": "#/definitions/HumanAddr"
             },
@@ -357,6 +430,12 @@
             "amount": {
               "$ref": "#/definitions/Uint128"
             },
+            "memo": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "msg": {
               "anyOf": [
                 {
@@ -378,6 +457,68 @@
             },
             "recipient": {
               "$ref": "#/definitions/HumanAddr"
+            },
+            "recipient_code_hash": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "batch_transfer_from"
+      ],
+      "properties": {
+        "batch_transfer_from": {
+          "type": "object",
+          "required": [
+            "actions"
+          ],
+          "properties": {
+            "actions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/TransferFromAction"
+              }
+            },
+            "padding": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "batch_send_from"
+      ],
+      "properties": {
+        "batch_send_from": {
+          "type": "object",
+          "required": [
+            "actions"
+          ],
+          "properties": {
+            "actions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/SendFromAction"
+              }
+            },
+            "padding": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         }
@@ -399,8 +540,42 @@
             "amount": {
               "$ref": "#/definitions/Uint128"
             },
+            "memo": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
             "owner": {
               "$ref": "#/definitions/HumanAddr"
+            },
+            "padding": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "batch_burn_from"
+      ],
+      "properties": {
+        "batch_burn_from": {
+          "type": "object",
+          "required": [
+            "actions"
+          ],
+          "properties": {
+            "actions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/BurnFromAction"
+              }
             },
             "padding": {
               "type": [
@@ -421,15 +596,27 @@
         "mint": {
           "type": "object",
           "required": [
-            "address",
-            "amount"
+            "amount",
+            "recipient"
           ],
           "properties": {
-            "address": {
-              "$ref": "#/definitions/HumanAddr"
-            },
             "amount": {
               "$ref": "#/definitions/Uint128"
+            },
+            "memo": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "padding": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "recipient": {
+              "$ref": "#/definitions/HumanAddr"
             }
           }
         }
@@ -438,25 +625,104 @@
     {
       "type": "object",
       "required": [
-        "swap"
+        "batch_mint"
       ],
       "properties": {
-        "swap": {
+        "batch_mint": {
           "type": "object",
           "required": [
-            "amount",
-            "destination",
-            "network"
+            "actions"
           ],
           "properties": {
-            "amount": {
-              "$ref": "#/definitions/Uint128"
+            "actions": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/MintAction"
+              }
             },
-            "destination": {
-              "type": "string"
+            "padding": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "add_minters"
+      ],
+      "properties": {
+        "add_minters": {
+          "type": "object",
+          "required": [
+            "minters"
+          ],
+          "properties": {
+            "minters": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/HumanAddr"
+              }
             },
-            "network": {
-              "type": "string"
+            "padding": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "remove_minters"
+      ],
+      "properties": {
+        "remove_minters": {
+          "type": "object",
+          "required": [
+            "minters"
+          ],
+          "properties": {
+            "minters": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/HumanAddr"
+              }
+            },
+            "padding": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "set_minters"
+      ],
+      "properties": {
+        "set_minters": {
+          "type": "object",
+          "required": [
+            "minters"
+          ],
+          "properties": {
+            "minters": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/HumanAddr"
+              }
             },
             "padding": {
               "type": [
@@ -482,6 +748,56 @@
           "properties": {
             "address": {
               "$ref": "#/definitions/HumanAddr"
+            },
+            "padding": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "set_contract_status"
+      ],
+      "properties": {
+        "set_contract_status": {
+          "type": "object",
+          "required": [
+            "level"
+          ],
+          "properties": {
+            "level": {
+              "$ref": "#/definitions/ContractStatusLevel"
+            },
+            "padding": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "object",
+      "required": [
+        "revoke_permit"
+      ],
+      "properties": {
+        "revoke_permit": {
+          "type": "object",
+          "required": [
+            "permit_name"
+          ],
+          "properties": {
+            "permit_name": {
+              "type": "string"
             }
           }
         }
@@ -493,8 +809,182 @@
       "description": "Binary is a wrapper around Vec<u8> to add base64 de/serialization with serde. It also adds some helper methods to help encode inline.\n\nThis is only needed as serde-json-{core,wasm} has a horrible encoding for Vec<u8>",
       "type": "string"
     },
+    "BurnFromAction": {
+      "type": "object",
+      "required": [
+        "amount",
+        "owner"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "memo": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "owner": {
+          "$ref": "#/definitions/HumanAddr"
+        }
+      }
+    },
+    "ContractStatusLevel": {
+      "type": "string",
+      "enum": [
+        "normal_run",
+        "stop_all_but_redeems",
+        "stop_all"
+      ]
+    },
     "HumanAddr": {
       "type": "string"
+    },
+    "MintAction": {
+      "type": "object",
+      "required": [
+        "amount",
+        "recipient"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "memo": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "recipient": {
+          "$ref": "#/definitions/HumanAddr"
+        }
+      }
+    },
+    "SendAction": {
+      "type": "object",
+      "required": [
+        "amount",
+        "recipient"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "memo": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "msg": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Binary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "recipient": {
+          "$ref": "#/definitions/HumanAddr"
+        },
+        "recipient_code_hash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "SendFromAction": {
+      "type": "object",
+      "required": [
+        "amount",
+        "owner",
+        "recipient"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "memo": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "msg": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/Binary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "owner": {
+          "$ref": "#/definitions/HumanAddr"
+        },
+        "recipient": {
+          "$ref": "#/definitions/HumanAddr"
+        },
+        "recipient_code_hash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      }
+    },
+    "TransferAction": {
+      "type": "object",
+      "required": [
+        "amount",
+        "recipient"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "memo": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "recipient": {
+          "$ref": "#/definitions/HumanAddr"
+        }
+      }
+    },
+    "TransferFromAction": {
+      "type": "object",
+      "required": [
+        "amount",
+        "owner",
+        "recipient"
+      ],
+      "properties": {
+        "amount": {
+          "$ref": "#/definitions/Uint128"
+        },
+        "memo": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "owner": {
+          "$ref": "#/definitions/HumanAddr"
+        },
+        "recipient": {
+          "$ref": "#/definitions/HumanAddr"
+        }
+      }
     },
     "Uint128": {
       "type": "string"
