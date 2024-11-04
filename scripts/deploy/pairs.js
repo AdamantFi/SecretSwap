@@ -34,9 +34,9 @@ const factory_code_hash =
 const pair_code_id = 31;
 const pair_code_hash =
   "0DFD06C7C3C482C14D36BA9826B83D164003F2B0BB302F222DB72361E0927490";
-const token_code_id = 2002; // custom snip26 to allow long name and '-' in symbol
+const token_code_id = 2004; // custom snip26 to allow long name and '-' in symbol
 const token_code_hash =
-  "FFB0FDDE923856649E4394140F0210C43F744FB1D684BC46FD59C873EF0A79EC";
+  "1C64C715E327F8824185872B47B74E8598D16C81B9481554CA24A4D5A72E8E3B";
 
 const prng_seed = Buffer.from("adamantfi rocks").toString("base64");
 
@@ -44,7 +44,7 @@ const init_factory_msg = new MsgInstantiateContract({
   admin: wallet.address,
   sender: wallet.address,
   code_id: factory_code_id,
-  label: "adamantfi-factory-alpha0",
+  label: "adamantfi-factory-alpha1",
   code_hash: factory_code_hash,
   init_msg: {
     pair_code_id,

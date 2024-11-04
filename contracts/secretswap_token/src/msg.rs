@@ -45,7 +45,7 @@ impl InstantiateMsg {
 /// This type represents optional configuration values which can be overridden.
 /// All values are optional and have defaults which are more private by default,
 /// but can be overridden if necessary
-#[derive(Serialize, Deserialize, JsonSchema, Clone, Default, Debug)]
+#[derive(Serialize, Deserialize, JsonSchema, Clone, Debug)]
 #[serde(rename_all = "snake_case")]
 pub struct InitConfig {
     /// Indicates whether the total supply is public or should be kept secret.
@@ -91,6 +91,19 @@ impl InitConfig {
 
     pub fn can_modify_denoms(&self) -> bool {
         self.can_modify_denoms.unwrap_or(false)
+    }
+}
+
+impl Default for InitConfig {
+    fn default() -> Self {
+        InitConfig {
+            public_total_supply: Some(false),
+            enable_deposit: Some(false),
+            enable_redeem: Some(false),
+            enable_mint: Some(true),
+            enable_burn: Some(true),
+            can_modify_denoms: Some(false),
+        }
     }
 }
 
