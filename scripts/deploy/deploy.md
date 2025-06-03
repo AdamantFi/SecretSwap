@@ -87,14 +87,14 @@ Contract Metadata (note the unique label format)
 
 - Factory: 30
 - Pair: 31
-- Token: 2002
+- Token: 2005
 - Router: 55
 
 2. Instantiate Factory
 
 ```sh
-INIT_MSG='{"pair_code_id":31,"token_code_id":2002,"token_code_hash":"FFB0FDDE923856649E4394140F0210C43F744FB1D684BC46FD59C873EF0A79EC","pair_code_hash":"0DFD06C7C3C482C14D36BA9826B83D164003F2B0BB302F222DB72361E0927490","prng_seed":"YWRhbWFudGZpIHJvY2tz"}'
-secretcli tx compute instantiate 30 "$INIT_MSG" --label testing-factory-1234 --from adamant --gas 50000 --gas-prices 0.1uscrt
+INIT_MSG='{"pair_code_id":31,"token_code_id":2005,"token_code_hash":"744C588ED4181B13A49A7C75A49F10B84B22B24A69B1E5F3CDFF34B2C343E888","pair_code_hash":"0DFD06C7C3C482C14D36BA9826B83D164003F2B0BB302F222DB72361E0927490","prng_seed":"YWRhbWFudGZpIHJvY2tz"}'
+secretcli tx compute instantiate 30 "$INIT_MSG" --label secretswap-factory-2 --from adamant --gas 100000 --gas-prices 0.1uscrt
 ```
 
 ```json
