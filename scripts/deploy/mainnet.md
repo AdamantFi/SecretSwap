@@ -86,7 +86,7 @@ Instantiate Bulk Distributor
 ```sh
 secretcli tx compute instantiate 2277 '{ "reward_token": { "address": "secret1cu5gvrvu24hm36fzyq46vca7u25llrymj6ntek", "contract_hash": "638a3e1d50175fbcb8373cf801565283e3eb23d88a9b7b7f99fcc5eb1e6b561e" }, "spy_to_reward": { "address": "secret15rlkcn54mjkwfl6s735zjx3v7zcry6g499t5ev", "contract_hash": "c644edd309de7fd865b4fbe22054bcbe85a6c0b8abf5f110053fe1b2d0e8a72a" } }' \
   --admin secret1kh0x34l6z66zty6j0cafn0j3fgs20aytulew52 \
-  --label "AdamantFi sscrt-usdc.nbl bulk-distributor" \
+  --label "sscrt-usdc.nbl reward vault" \
   --from adamant \
   --gas 200000 \
   --gas-prices 0.1uscrt
@@ -105,34 +105,38 @@ secretcli tx compute instantiate 2277 '{ "reward_token": { "address": "secret1cu
 }
 ```
 
-# the rest is not done yet!
-
 Add reward source
 
 ```sh
-secretcli tx compute execute secret1yauz94h0ck2lh02u96yum67cswjdapes7y62k8 '{"add_reward_sources":{"contracts":[{"address":"secret1tpt0nzsru5s9gyzz8gvtcer229vw788z7jsg29","contract_hash": "89083455710f42520356d0fbaa2d3a6f8e1362e1b67040cd59d365d02378fad5" }]}}' --from dev --gas 300000 -y
+secretcli tx compute execute secret15rlkcn54mjkwfl6s735zjx3v7zcry6g499t5ev '{"add_reward_sources":{"contracts":[{"address":"secret1s563hkkrzjzx9q8qcx3r47h7s0hn5kfgy9t62r","contract_hash": "89083455710f42520356d0fbaa2d3a6f8e1362e1b67040cd59d365d02378fad5" }]}}' \
+  --from adamant \
+  --gas 300000 \
+  --gas-prices 0.1uscrt
 ```
 
 To add reward tokens, send them to the bulk_distributor with the attached message encoded to base64:
 
 ```json
 {
-  "new_bulk_reward": { "distribute_over": 1000 }
+  "new_bulk_reward": { "distribute_over": 50000 }
 }
 ```
 
 _NOTE: `distribute_over` is expressed in blocks, not seconds_
 
 ```sh
-echo -n '{"new_bulk_reward": { "distribute_over": 1000 }}' | base64
+echo -n '{"new_bulk_reward": { "distribute_over": 50000 }}' | base64
 ```
 
-In this example, `"msg": "eyJuZXdfYnVsa19yZXdhcmQiOiB7ICJkaXN0cmlidXRlX292ZXIiOiAxMDAwIH19"`
+In this example, `"msg": "eyJuZXdfYnVsa19yZXdhcmQiOiB7ICJkaXN0cmlidXRlX292ZXIiOiA1MDAwMCB9fQ=="`
 
 The full `send` message (for the snip20 reward token):
 
 ```sh
-secretcli tx compute execute secret1n34sgcepgdxmt8mcfgu8076uzjdrh5au6vqnzg '{"send":{"recipient":"secret1tpt0nzsru5s9gyzz8gvtcer229vw788z7jsg29","amount":"1000000","msg":"eyJuZXdfYnVsa19yZXdhcmQiOiB7ICJkaXN0cmlidXRlX292ZXIiOiAxMDAwIH19"}}' --from dev -y
+secretcli tx compute execute secret1cu5gvrvu24hm36fzyq46vca7u25llrymj6ntek '{"send":{"recipient":"secret1s563hkkrzjzx9q8qcx3r47h7s0hn5kfgy9t62r","amount":"1000000","msg":"eyJuZXdfYnVsa19yZXdhcmQiOiB7ICJkaXN0cmlidXRlX292ZXIiOiA1MDAwMCB9fQ=="}}' \
+  --from adamant \
+  --gas 300000 \
+  --gas-prices 0.1uscrt
 ```
 
 ### Reference
@@ -143,7 +147,7 @@ secretcli tx compute execute secret1n34sgcepgdxmt8mcfgu8076uzjdrh5au6vqnzg '{"se
 | pair             | 31   | 0dfd06c7c3c482c14d36ba9826b83d164003f2b0bb302f222db72361e0927490 | _get from factory_                            |
 | token            | 2005 | 744c588ed4181b13a49a7c75a49f10b84b22b24a69b1e5f3cdff34b2c343e888 | secret1n34sgcepgdxmt8mcfgu8076uzjdrh5au6vqnzg |
 | lp_staking       | 2276 | c644edd309de7fd865b4fbe22054bcbe85a6c0b8abf5f110053fe1b2d0e8a72a | secret15rlkcn54mjkwfl6s735zjx3v7zcry6g499t5ev |
-| bulk_distributor | 2277 | 89083455710f42520356d0fbaa2d3a6f8e1362e1b67040cd59d365d02378fad5 | --------------------------------------------- |
+| bulk_distributor | 2277 | 89083455710f42520356d0fbaa2d3a6f8e1362e1b67040cd59d365d02378fad5 | secret1s563hkkrzjzx9q8qcx3r47h7s0hn5kfgy9t62r |
 
 Pair Info
 
