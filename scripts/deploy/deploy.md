@@ -125,7 +125,7 @@ secretcli query compute query secret1kq9d7uzx77kntr5pl4k53rgzv0wk97ul8pvlwm '{"p
 
 4. Instantiate Router
 
-Register tokens on instantiation:
+Registering sSCRT, sATOM, SILK, ETH.axl, USDC.nbl, JKL
 
 ```json
 {
@@ -135,12 +135,24 @@ Register tokens on instantiation:
       "code_hash": "af74387e276be8874f07bec3a87023ee49b0e7ebe08178c49d0a49c3c98ed60e"
     },
     {
-      "address": "secret1xzlgeyuuyqje79ma6vllregprkmgwgavk8y798",
-      "code_hash": "15361339b59f2753fc365283d4a144dd3a4838e237022ac0249992d8d9f3b88e"
+      "address": "secret19e75l25r6sa6nhdf4lggjmgpw0vmpfvsw5cnpe",
+      "code_hash": "638a3e1d50175fbcb8373cf801565283e3eb23d88a9b7b7f99fcc5eb1e6b561e"
     },
     {
-      "address": "secret15l9cqgz5uezgydrglaak5ahfac69kmx2qpd6xt",
-      "code_hash": "c7fe67b243dfedc625a28ada303434d6f5a46a3086e7d2b5063a814e9f9a379d"
+      "address": "secret1fl449muk5yq8dlad7a22nje4p5d2pnsgymhjfd",
+      "code_hash": "638a3e1d50175fbcb8373cf801565283e3eb23d88a9b7b7f99fcc5eb1e6b561e"
+    },
+    {
+      "address": "secret139qfh3nmuzfgwsx2npnmnjl4hrvj3xq5rmq8a0",
+      "code_hash": "638a3e1d50175fbcb8373cf801565283e3eb23d88a9b7b7f99fcc5eb1e6b561e"
+    },
+    {
+      "address": "secret1chsejpk9kfj4vt9ec6xvyguw539gsdtr775us2",
+      "code_hash": "5a085bd8ed89de92b35134ddd12505a602c7759ea25fb5c089ba03c8535b3042"
+    },
+    {
+      "address": "secret1sgaz455pmtgld6dequqayrdseq8vy2fc48n8y3",
+      "code_hash": "638a3e1d50175fbcb8373cf801565283e3eb23d88a9b7b7f99fcc5eb1e6b561e"
     }
   ],
   "owner": "secret16zvp2t86hdv5na3quygc9f2rnn9f9l4vszgtue"
@@ -148,21 +160,28 @@ Register tokens on instantiation:
 ```
 
 ```sh
-INIT_MSG='{"register_tokens":[{"address":"secret1k0jntykt7e4g3y88ltc60czgjuqdy4c9e8fzek","code_hash":"af74387e276be8874f07bec3a87023ee49b0e7ebe08178c49d0a49c3c98ed60e"},{"address":"secret1xzlgeyuuyqje79ma6vllregprkmgwgavk8y798","code_hash":"15361339b59f2753fc365283d4a144dd3a4838e237022ac0249992d8d9f3b88e"},{"address":"secret15l9cqgz5uezgydrglaak5ahfac69kmx2qpd6xt","code_hash":"c7fe67b243dfedc625a28ada303434d6f5a46a3086e7d2b5063a814e9f9a379d"}],"owner":"secret16zvp2t86hdv5na3quygc9f2rnn9f9l4vszgtue"}'
-secretcli tx compute instantiate 55 "$INIT_MSG" --label testing-router-1234 --from adamant --gas 300000 --gas-prices 0.1uscrt
+INIT_MSG='{"register_tokens":[{"address":"secret1k0jntykt7e4g3y88ltc60czgjuqdy4c9e8fzek","code_hash":"af74387e276be8874f07bec3a87023ee49b0e7ebe08178c49d0a49c3c98ed60e"},{"address":"secret19e75l25r6sa6nhdf4lggjmgpw0vmpfvsw5cnpe","code_hash":"638a3e1d50175fbcb8373cf801565283e3eb23d88a9b7b7f99fcc5eb1e6b561e"},{"address":"secret1fl449muk5yq8dlad7a22nje4p5d2pnsgymhjfd","code_hash":"638a3e1d50175fbcb8373cf801565283e3eb23d88a9b7b7f99fcc5eb1e6b561e"},{"address":"secret139qfh3nmuzfgwsx2npnmnjl4hrvj3xq5rmq8a0","code_hash":"638a3e1d50175fbcb8373cf801565283e3eb23d88a9b7b7f99fcc5eb1e6b561e"},{"address":"secret1chsejpk9kfj4vt9ec6xvyguw539gsdtr775us2","code_hash":"5a085bd8ed89de92b35134ddd12505a602c7759ea25fb5c089ba03c8535b3042"},{"address":"secret1sgaz455pmtgld6dequqayrdseq8vy2fc48n8y3","code_hash":"638a3e1d50175fbcb8373cf801565283e3eb23d88a9b7b7f99fcc5eb1e6b561e"}],"owner":"secret16zvp2t86hdv5na3quygc9f2rnn9f9l4vszgtue"}'
+secretcli tx compute instantiate 55 "$INIT_MSG" \
+  --admin secret1kh0x34l6z66zty6j0cafn0j3fgs20aytulew52 \
+  --label adamantfi-router \
+  --from adamant \
+  --gas 400000 \
+  --gas-prices 0.1uscrt
 ```
 
 Contract Metadata
 
 ```json
 {
-  "contract_address": "secret1vltze0l7vrsxfynyxl4v9qy4k0gjlfpl7kmd9t",
-  "code_id": 55,
-  "creator": "secret16zvp2t86hdv5na3quygc9f2rnn9f9l4vszgtue",
-  "label": "testing-router-1234",
-  "created": {
-    "block_height": 16738874,
-    "tx_index": 169914
+  "contract_address": "secret1ysgg7h8x6ukax0phkqmeaq2t8kljg2cuymjuc4",
+  "contract_info": {
+    "code_id": "55",
+    "creator": "secret16zvp2t86hdv5na3quygc9f2rnn9f9l4vszgtue",
+    "label": "adamantfi-router",
+    "created": { "block_height": "20482074", "tx_index": "0" },
+    "ibc_port_id": "",
+    "admin": "secret1kh0x34l6z66zty6j0cafn0j3fgs20aytulew52",
+    "admin_proof": null
   }
 }
 ```
@@ -170,7 +189,7 @@ Contract Metadata
 Sanity Check
 
 ```sh
-secretcli query compute query secret1vltze0l7vrsxfynyxl4v9qy4k0gjlfpl7kmd9t '{"supported_tokens":{}}'
+secretcli query compute query secret1ysgg7h8x6ukax0phkqmeaq2t8kljg2cuymjuc4 '{"supported_tokens":{}}'
 ```
 
 ### Tips
