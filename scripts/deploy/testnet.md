@@ -98,6 +98,12 @@ The full `send` message (for the snip20 reward token):
 secretcli tx compute execute secret1n34sgcepgdxmt8mcfgu8076uzjdrh5au6vqnzg '{"send":{"recipient":"secret1tpt0nzsru5s9gyzz8gvtcer229vw788z7jsg29","amount":"1000000","msg":"eyJuZXdfYnVsa19yZXdhcmQiOiB7ICJkaXN0cmlidXRlX292ZXIiOiAxMDAwIH19"}}' --from dev -y
 ```
 
+Manually update the allocation of rewards from the bulk distributor contract to the lp staking contract (updates users' pending rewards).
+
+```sh
+secretcli tx compute execute secret1tpt0nzsru5s9gyzz8gvtcer229vw788z7jsg29 '{"update_allocation":{"spy_addr":"secret1yauz94h0ck2lh02u96yum67cswjdapes7y62k8","spy_hash":"c644edd309de7fd865b4fbe22054bcbe85a6c0b8abf5f110053fe1b2d0e8a72a"}}' --from dev -y
+```
+
 ### Reference
 
 | code             | ID    | hash                                                             | address                                       |

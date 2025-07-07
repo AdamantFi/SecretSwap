@@ -133,9 +133,20 @@ In this example, `"msg": "eyJuZXdfYnVsa19yZXdhcmQiOiB7ICJkaXN0cmlidXRlX292ZXIiOi
 The full `send` message (for the snip20 reward token):
 
 ```sh
-secretcli tx compute execute secret1cu5gvrvu24hm36fzyq46vca7u25llrymj6ntek '{"send":{"recipient":"secret1s563hkkrzjzx9q8qcx3r47h7s0hn5kfgy9t62r","amount":"1000000","msg":"eyJuZXdfYnVsa19yZXdhcmQiOiB7ICJkaXN0cmlidXRlX292ZXIiOiA1MDAwMCB9fQ=="}}' \
+secretcli tx compute execute secret1cu5gvrvu24hm36fzyq46vca7u25llrymj6ntek \
+  '{"send":{"recipient":"secret1s563hkkrzjzx9q8qcx3r47h7s0hn5kfgy9t62r","amount":"1000000","msg":"eyJuZXdfYnVsa19yZXdhcmQiOiB7ICJkaXN0cmlidXRlX292ZXIiOiA1MDAwMCB9fQ=="}}' \
   --from adamant \
   --gas 300000 \
+  --gas-prices 0.1uscrt
+```
+
+Manually update the allocation of rewards from the bulk distributor contract to the lp staking contract (updates users' pending rewards).
+
+```sh
+secretcli tx compute execute secret1s563hkkrzjzx9q8qcx3r47h7s0hn5kfgy9t62r \
+  '{"update_allocation":{"spy_addr":"secret15rlkcn54mjkwfl6s735zjx3v7zcry6g499t5ev","spy_hash":"c644edd309de7fd865b4fbe22054bcbe85a6c0b8abf5f110053fe1b2d0e8a72a"}}' \
+  --from adamant \
+  --gas 200000 \
   --gas-prices 0.1uscrt
 ```
 
